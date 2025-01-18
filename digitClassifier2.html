@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Digit Detection</title>
+
+        <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Audiowide">
+        <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+        <style>
+            html, body {
+                margin: 0;
+                height: 100%;
+            }
+
+            body {
+                color: white;
+                position: relative;
+                font-family: "Audiowide", sans-serif;
+                background: linear-gradient(to right, #4e4376, #2b5876);
+            }
+
+            body::before {
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                opacity: 1;
+                z-index: -1;
+                content: "";
+                position: absolute;
+                transition: opacity 1s;
+                background: linear-gradient(to bottom right, #c9ffbf, #ffafbd);
+            }
+
+            .transparentBody::before {
+                opacity: 0;
+            }
+
+            #heading {
+                margin: 0;
+                height: 45px;
+                padding: 10px;
+                display: flex;
+                position: relative;
+                align-items: center;
+                justify-content: space-between;
+                border-bottom-left-radius: 15px;
+                border-bottom-right-radius: 15px;
+                animation: moveGradient 3s ease infinite;
+                background-image: linear-gradient(225deg, #4776e6, #8e54e9);
+                background-size: 300% 300%;
+            }
+
+            #heading::before {
+                top: 50%;
+                left: 50%;
+                z-index: -1;
+                content: "";
+                width: 100%;
+                height: 100%;
+                position: absolute;
+                padding-bottom: 3px;
+                border-radius: 15px;
+                background-color: black;
+                transform: translate(-50%, -50%);
+            }
+
+            #heading > div {
+                margin: 5px;
+                padding: 10px;
+                display: flex;
+                font-size: 20px;
+                align-items: center;
+                justify-content: center;
+            }
+
+            #diamond {
+                width: 20px;
+                height: 20px;
+                rotate: 45deg;
+                margin-right: 10px;
+                filter: brightness(150%);
+                background: linear-gradient(to top right, #2bc0e4, #eaecc6);
+            }
+
+            .themeToggle {
+                width: 70px;
+                height: 20px;
+                padding: 5px;
+                overflow: hidden;
+                margin-left: 10px;
+                position: relative;
+                border-radius: 30px;
+                display: inline-block;
+                transition: background-color 1s;
+                background-color: deepskyblue;
+                box-shadow: inset 0px 0px 2px 3px deepskyblue;
+            }
+
+            .night {
+                background-color: lawngreen;
+                box-shadow: inset 0px 0px 2px 3px lawngreen;
+            }
+
+            .toggleBtn {
+                z-index: 2;
+                width: 20px;
+                height: 20px;
+                display: block;
+                cursor: pointer;
+                border-radius: 50%;
+                position: relative;
+                transition: transform 1s;
+                background-color: yellow;
+            }
+
+            .toggleBtn::before {
+                top: 50%;
+                left: 50%;
+                content: "";
+                width: 50px;
+                z-index: -1;
+                height: 50px;
+                opacity: 0.3;
+                position: absolute;
+                border-radius: 50%;
+                translate: -50% -50%;
+                background-color: yellow;
+            }
+
+            .toggleBtn::after {
+                top: 50%;
+                left: 50%;
+                content: "";
+                width: 70px;
+                z-index: -2;
+                height: 70px;
+                opacity: 0.2;
+                position: absolute;
+                border-radius: 50%;
+                translate: -50% -50%;
+                background-color: yellow;
+            }
+
+            .move {
+                transform: translateX(50px);
+            }
+
+            .material-icons {
+                filter: brightness(200%);
+            }
+
+            #container {
+                top: 50%;
+                left: 50%;
+                display: flex;
+                position: absolute;
+                align-items: center;
+                translate: -50% -50%;
+                flex-direction: column;
+                justify-content: center;
+            }
+
+            #digitCanvas {
+                width: 550px;
+                height: 550px;
+                border-radius: 20px;
+                background-color: white;
+                border: 2px solid black;
+            }
+
+            #btnContainer {
+                margin: 15px;
+                padding: 20px;
+                display: flex;
+                justify-content: center;
+            }
+
+            #clearCanvas, #detectDigits {
+                width: 150px;
+                height: 40px;
+                font-size: 14px;
+                cursor: pointer;
+                overflow: hidden;
+                font-weight: bold;
+                position: relative;
+                border-radius: 15px;
+                background: transparent;
+            }
+
+            #clearCanvas::before, #detectDigits::before {
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                opacity: 1;
+                content: "";
+                z-index: -1;
+                position: absolute;
+                transition: opacity 0.5s;
+            }
+
+            #clearCanvas {
+                margin-right: 10px;
+            }
+            
+            #detectDigits {
+                margin-left: 10px;
+            }
+
+            #clearCanvas::before {
+                background-image: linear-gradient(160deg, #0093E9 0%, #80D0C7 100%);
+            }
+
+            #detectDigits::before {
+                background: linear-gradient(to right, gold, orange, hotpink);
+            }
+
+            #clearCanvas:hover::before, #detectDigits:hover::before {
+                opacity: 0.65;
+            }
+
+            #popup {
+                top: 50%;
+                left: 50%;
+                z-index: 2;
+                width: 300px;
+                height: 300px;
+                padding: 20px;
+                position: fixed;
+                text-align: center;
+                border-radius: 15px;
+                background-color: black;
+                transform: translate(-50%, -50%);
+            }
+
+            #popup span {
+                display: block;
+                font-size: 30px;
+                position: relative;
+            }
+
+            #popup span::before {
+                left: 0;
+                content: "";
+                height: 5px;
+                width: 300px;
+                bottom: -10px;
+                position: absolute;
+                filter: brightness(120%);
+                background-image: linear-gradient(90deg, #00DBDE 0%, #FC00FF 100%);
+            }
+
+            #results {
+                margin: 0;
+                padding: 10px;
+                font-size: 155px;
+            }
+
+            .hidden {
+                display: none;
+            }
+
+            #closePopup {
+                width: 120px;
+                height: 40px;
+                border: none;
+                color: white;
+                font-size: 14px;
+                cursor: pointer;
+                font-weight: bold;
+                position: relative;
+                border-radius: 15px;
+                background-color: black;
+            }
+
+            #closePopup:hover {
+                background: transparent;
+            }
+
+            #closePopup::before, #closePopup::after {
+                top: 50%;
+                left: 50%;
+                z-index: -1;
+                content: "";
+                width: 100%;
+                height: 100%;
+                padding: 2px;
+                position: absolute;
+                border-radius: 15px;
+                filter: brightness(120%);
+                transform: translate(-50%, -50%);
+                animation: moveGradient 3s ease infinite;
+                background: linear-gradient(to bottom right, #00DBDE 0%, #FC00FF 100%);
+                background-size: 400% 400%;
+            }
+
+            #closePopup::before {
+                filter: blur(10px);
+            }
+
+            @keyframes moveGradient {
+                0% {
+                    background-position: 0% 0%;
+                }
+                50% {
+                    background-position: 100% 100%;
+                }
+                100% {
+                    background-position: 0% 0%;
+                }
+            }
+
+            #overlay {
+                top: 0;
+                left: 0;
+                z-index: 1;
+                width: 100%;
+                height: 100%;
+                position: fixed;
+                background-color: rgba(0, 0, 0, 0.5);
+            }
+
+            #footer {
+                left: 0;
+                right: 0;
+                bottom: 0;
+                height: 30px;
+                color: black;
+                font-size: 16px;
+                position: absolute;
+                text-align: center;
+                background: transparent;
+            }
+
+            #footerText {
+                transition: color 1s;
+            }
+
+            .footerNight {
+                color: white;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="heading">
+            <div>
+                <div id="diamond"></div>
+                <span>Digit Detection & Recognition</span>
+            </div>
+            <div>
+                <i class="material-icons dayIcon" style="color: orange; font-size: 32px;">wb_sunny</i>
+                <i class="material-icons nightIcon hidden" style="color: lawngreen; font-size: 32px; rotate: 180deg;">brightness_2</i>
+                <div class="themeToggle">
+                    <span class="toggleBtn"></span>
+                </div>
+            </div>
+        </div>
+
+        <div id="container">
+            <canvas id="digitCanvas"></canvas>
+            <div id="btnContainer">
+                <button id="clearCanvas">Clear</button>
+                <button id="detectDigits">Detect Digits</button>
+            </div>
+        </div>
+        <div id="popup" class="hidden">
+            <span>Digit Detected:</span>
+            <p id="results"></p>
+            <button id="closePopup">Close</button>
+        </div>
+        <div id="overlay" class="hidden"></div>
+
+        <footer id="footer">
+            <span id="footerText"></span>
+        </footer>
+        
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                document.querySelector(".toggleBtn").addEventListener("click", () => {
+                    document.querySelector(".dayIcon").classList.toggle("hidden");
+                    document.querySelector(".toggleBtn").classList.toggle("move");
+                    document.querySelector(".nightIcon").classList.toggle("hidden");
+                    document.querySelector(".themeToggle").classList.toggle("night");
+                    document.querySelector("body").classList.toggle("transparentBody");
+                    document.querySelector("#footerText").classList.toggle("footerNight");
+                });
+
+                let date = new Date();
+                document.getElementById("footerText").innerHTML = "Powered by OwenKhoo <span style='font-size: 22px'>&copy;</span> " + `${date.getFullYear()}`;
+
+                const canvas = document.getElementById("digitCanvas");
+                const ctx = canvas.getContext("2d");
+                let isDrawing = false;
+                let lastX = 0;
+                let lastY = 0;
+
+                canvas.addEventListener("mousedown", (e) => {
+                    isDrawing = true;
+                    const pos = getMousePos(canvas, e);
+                    lastX = pos.x;
+                    lastY = pos.y;
+                });
+
+                canvas.addEventListener("mouseup", () => {
+                    isDrawing = false;
+                });
+
+                canvas.addEventListener("mousemove", (e) => {
+                    if (!isDrawing) return;
+
+                    const pos = getMousePos(canvas, e);
+
+                    ctx.lineWidth = 10;
+                    ctx.linecap = "round";
+                    ctx.linejoin = "round";
+                    ctx.strokeStyle = "red";
+
+                    ctx.beginPath();
+                    ctx.moveTo(lastX, lastY);
+                    ctx.lineTo(pos.x, pos.y);
+                    ctx.stroke();
+
+                    lastX = pos.x;
+                    lastY = pos.y;
+                });
+
+                document.getElementById("closePopup").addEventListener("click", () => {
+                    document.getElementById("popup").classList.add("hidden");
+                    document.getElementById("overlay").classList.add("hidden");
+                });
+
+                document.getElementById("clearCanvas").addEventListener("click", () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                });
+
+                document.getElementById("detectDigits").addEventListener("click", async () => {
+                    // Get the image data from the canvas element
+                    const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+                    // Preprocess the image (resize, normalize, etc.) before sending it to the model
+                    const preprocessedImage = preprocessImage(image);
+
+                    console.log("Processing...");
+
+                    // Convert the preprocessed TensorFlow image into a standard JavaScript array for API compatibility
+                    const digitImage = preprocessedImage.arraySync();
+
+                    // Send a POST request to the API at http://localhost:5000/predict with the image data
+                    const response = await fetch("http://localhost:5000/predict", {
+                        method : "POST",
+                        headers : {
+                            "Content-Type" : "application/json" // Indicate the content type is JSON
+                        },
+                        body : JSON.stringify({
+                            features : [digitImage] // Send the preprocessed image as an array
+                        })
+                    });
+
+                    // Check if the API request was successful
+                    if (!response.ok) {
+                        throw new Error("API request failed!");
+                    }
+
+                    // Parse the JSON response from the API
+                    const result = await response.json();
+                    
+                    // Handle any error sent back by the API
+                    if (result.error) {
+                        throw new Error(result.error);
+                    }
+
+                    // Display the prediction result in a popup
+                    const prediction = result.prediction[0];
+                    document.getElementById("popup").classList.remove("hidden");
+                    document.getElementById("overlay").classList.remove("hidden");
+                    document.getElementById("results").innerHTML = `${prediction}`;
+
+                     // Dispose of the preprocessed TensorFlow image to free memory
+                    preprocessedImage.dispose();
+
+                    console.log("Done");
+                });
+
+                function getMousePos(canvas, event) {
+                    const rect = canvas.getBoundingClientRect();
+                    console.log("Canvas: " + rect.left + " " + rect.top);
+                    console.log("Mouse: " + event.clientX + " " + event.clientY);
+                    return {
+                        x: event.clientX - rect.left,
+                        y: event.clientY - rect.top
+                    };
+                }
+
+                function preprocessImage(image) {
+                    const grayScale = tf.tidy(() => {
+                         // Convert the input image (HTML Canvas ImageData) into a grayscale TensorFlow tensor
+                        const imgTensor = tf.browser.fromPixels(image, 1);
+                        // Resize the image tensor to 28x28 dimensions
+                        const resized = tf.image.resizeBilinear(imgTensor, [28, 28]);
+                        // Normalize the pixel values to the range [-0.5, 0.5]
+                        return resized.div(tf.scalar(255)).sub(tf.scalar(0.5));
+                    });
+
+                    // Return the preprocessed image tensor
+                    return grayScale;
+                }
+            });
+        </script>
+    </body>
+</html>
